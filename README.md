@@ -90,3 +90,18 @@ Hospedagem Estática: GitHub Pages, Vercel ou Netlify
 
 Fonte: Google Fonts – Inter
 
+----
+
+Colocar as credenciais do seu SUPABASE
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+    <script>
+        const SUPABASE_URL = 'SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'SUPABASE_ANON_KEY';
+        const TABLE_NAME = 'TABLE_NAME'; 
+        const REPORT_WEBHOOK_URL = 'REPORT_WEBHOOK_URL';
+        const LOW_STOCK_WEBHOOK_URL = 'LOW_STOCK_WEBHOOK_URL';
+
+        
+
