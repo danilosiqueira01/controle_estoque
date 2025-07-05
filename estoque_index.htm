@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Estoque</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e7e5e4; 
+        }
+        .container { 
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .icon-sm { width: 16px; height: 16px; }
+        .icon-md { width: 18px; height: 18px; }
+        .icon-lg { width: 24px; height: 24px; }
+        .message-popup {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 0.5rem; 
+            color: white;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            pointer-events: none;
+        }
+        .message-popup.show {
+            opacity: 1;
+        }
+        .message-popup.success { background-color: #16a34a; } 
+        .message-popup.error { background-color: #dc2626; } 
+
+        .filter-button, .view-button, .action-button { 
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem; 
+            font-weight: 500; 
+            font-size: 0.875rem; 
+            transition: background-color 0.2s;
+            border: 1px solid transparent;
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        .filter-button-default { background-color: #4d7c0f; } 
+        .filter-button-default:hover { background-color: #3f6212; } 
+        .filter-button-default.active { background-color: #365314; box-shadow: 0 0 0 2px white, 0 0 0 4px #365314; } 
+
+        .filter-button-yellow { background-color: #eab308; } 
+        .filter-button-yellow:hover { background-color: #ca8a04; } 
+        .filter-button-yellow.active { background-color: #a16207; box-shadow: 0 0 0 2px white, 0 0 0 4px #a16207; } 
+        
+        .filter-button-red { background-color: #ef4444; } 
+        .filter-button-red:hover { background-color: #dc2626; } 
+        .filter-button-red.active { background-color: #b91c1c; box-shadow: 0 0 0 2px white, 0 0 0 4px #b91c1c; } 
+        
+        .view-button { background-color: #4d7c0f; }
+        .view-button:hover { background-color: #3f6212; }
+        .view-button.active { background-color: #365314; box-shadow: 0 0 0 2px white, 0 0 0 4px #365314; }
+
+         .clear-filter-button {
+            background-color: #78716c; 
+        }
+        .clear-filter-button:hover {
+            background-color: #57534e; 
+        }
+        .stock-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            vertical-align: middle;
+            flex-shrink: 0; 
+        }
+        .logo-image {
+            max-height: 60px; 
+            width: auto;
+            border-radius: 0.25rem; 
+        }
+        .list-item {
+            display: flex;
+            flex-wrap: wrap; 
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem; 
+            background-color: white;
+            border-radius: 0.5rem; 
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); 
+            margin-bottom: 0.25rem; 
+            transition: box-shadow 0.3s;
+        }
+        .list-item:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); 
+        }
+        .list-item-info {
+            flex-grow: 1;
+            display: flex; 
+            align-items: center; 
+            gap: 0.75rem; 
+            margin-right: 1rem; 
+            min-width: 0; 
+        }
+        .list-item-actions {
+            display: flex;
+            gap: 0.5rem; 
+            flex-shrink: 0; 
+        }
+        @media (max-width: 768px) { 
+            .list-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .list-item-info {
+                width: 100%;
+                flex-wrap: wrap; 
+                margin-right: 0;
+                margin-bottom: 0.5rem; 
+            }
+            .list-item-info > span:not(.stock-indicator) { 
+                min-width: calc(50% - 0.375rem); 
+                margin-bottom: 0.25rem;
+                text-align: left !important; 
+            }
+             .list-item-info > span.text-right { 
+                text-align: left !important;
+            }
+            .stock-indicator { 
+                margin-left: 0;
+                margin-right: 8px; 
+            }
+            .list-item-actions {
+                margin-top: 0.5rem; 
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
+    </style>
+</head>
+<body style="background-color: #e7e5e4;"> 
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="flex flex-col sm:flex-row justify-between items-center mb-6 pb-4 border-b border-stone-300"> 
+            <div class="flex flex-col items-center sm:items-start"> 
+                <img src="IMAGEM_LOGO" 
+                     alt="Logo da Empresa" 
+                     class="logo-image"
+                     onerror="this.onerror=null; this.src='https://placehold.co/150x50/a3a3a3/404040?text=Logo+Indisponivel';"> 
+            </div>
+            <div class="flex flex-wrap gap-2 mt-4 sm:mt-0"> 
+                <button id="sendReportBtn" class="action-button bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md flex items-center">
+                    <svg class="icon-sm mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Enviar Relatório
+                </button>
+                <button id="novoProdutoBtnHeader" class="bg-stone-600 hover:bg-stone-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md flex items-center"> 
+                    <svg class="icon-sm mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Novo Produto
+                </button>
+            </div>
+        </header>
+
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+             <div class="bg-white p-5 rounded-xl shadow-lg flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Total de Produtos</p>
+                    <p id="statTotalProdutos" class="text-2xl font-bold text-stone-700">0</p>
+                </div>
+                <div class="bg-stone-200 p-3 rounded-full">
+                    <svg class="icon-lg text-stone-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-lg flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Estoque Baixo</p>
+                    <p id="statEstoqueBaixo" class="text-2xl font-bold text-yellow-500">0</p>
+                </div>
+                 <div class="bg-yellow-100 p-3 rounded-full">
+                    <svg class="icon-lg text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-lg flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Valor Total (R$)</p>
+                    <p id="statValorTotal" class="text-2xl font-bold text-stone-700">0,00</p>
+                </div>
+                <div class="bg-stone-200 p-3 rounded-full">
+                    <svg class="icon-lg text-stone-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /></svg>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-8">
+            <div class="relative mb-4">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                     <svg class="icon-md text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+                </div>
+                <input type="text" id="searchInput" placeholder="Buscar produtos por nome ou categoria..." class="w-full py-3 pl-10 pr-4 text-gray-700 bg-white border-stone-400 rounded-lg focus:outline-none focus:border-lime-700 focus:ring-1 focus:ring-lime-700 shadow-sm">
+            </div>
+            <div class="mb-4">
+                <label for="categoryFilterSelect" class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Categoria:</label>
+                <select id="categoryFilterSelect" class="w-full sm:w-auto p-2 border border-stone-400 rounded-lg focus:outline-none focus:border-lime-700 focus:ring-1 focus:ring-lime-700 shadow-sm bg-white">
+                    <option value="todas">Todas as Categorias</option>
+                    <option value="rosto">Rosto</option>
+                    <option value="cabelos">Cabelos</option>
+                    <option value="casa">Casa</option>
+                    <option value="corpo">Corpo</option>
+                    <option value="aromaterapia">Aromaterapia</option>
+                    <option value="acessorios">Acessórios</option>
+                </select>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-4" id="filterButtonsContainer">
+                <button id="btnTop3MaiorEstoque" class="filter-button filter-button-default" title="Top 3 Maior Estoque">
+                    <svg class="icon-sm mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                    3
+                </button>
+                <button id="btnTop3MenorEstoque" class="filter-button filter-button-default" title="Top 3 Menor Estoque">
+                    <svg class="icon-sm mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    3
+                </button>
+                <button id="btnEstoqueBaixo" class="filter-button filter-button-yellow">Estoque Baixo</button>
+                <button id="btnEsgotado" class="filter-button filter-button-red">Esgotado</button>
+                <button id="btnMostrarTodos" class="filter-button clear-filter-button">Mostrar Todos</button>
+            </div>
+             <div class="flex justify-end space-x-2 mb-4">
+                <button id="btnGridView" class="view-button active">
+                    <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                </button>
+                <button id="btnListView" class="view-button">
+                    <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg>
+                </button>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="text-2xl font-semibold text-stone-800 mb-6">Produtos em Estoque</h2>
+            <div id="listaProdutosContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            </div>
+        </section>
+
+        <section id="formProdutoContainer" class="mt-12 bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+            <h2 id="formProdutoTitle" class="text-2xl font-semibold text-stone-800 mb-6">Adicionar Novo Produto</h2>
+            <form id="formProduto" class="space-y-6">
+                <div> 
+                    <label for="nomeProduto" class="block text-sm font-medium text-gray-700 mb-1">Nome do Produto:</label>
+                    <input type="text" id="nomeProduto" name="nomeProduto" required placeholder="Ex: Sabonete Líquido" class="w-full p-3 border border-stone-400 rounded-lg focus:outline-none focus:border-lime-700 focus:ring-1 focus:ring-lime-700 shadow-sm">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="categoriaProduto" class="block text-sm font-medium text-gray-700 mb-1">Categoria:</label>
+                        <select id="categoriaProduto" name="categoriaProduto" class="w-full p-3 border border-stone-400 rounded-lg focus:outline-none focus:border-lime-700 focus:ring-1 focus:ring-lime-700 shadow-sm bg-white">
+                            <option value="rosto">Rosto</option>
+                            <option value="cabelos">Cabelos</option>
+                            <option value="casa">Casa</option>
+                            <option value="corpo">Corpo</option>
+                            <option value="aromaterapia">Aromaterapia</option>
+                            <option value="acessorios">Acessórios</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="quantidadeProduto" class="block text-sm font-medium text-gray-700 mb-1">Quantidade:</label>
+                        <input type="number" id="quantidadeProduto" name="quantidadeProduto" min="0" required placeholder="Ex: 10" class="w-full p-3 border border-stone-400 rounded-lg focus:outline-none focus:border-lime-700 focus:ring-1 focus:ring-lime-700 shadow-sm">
+                    </div>
+                    <div>
+                        <label for="precoProduto" class="block text-sm font-medium text-gray-700 mb-1">Preço Unitário (R$):</label>
+                        <input type="text" id="precoProduto" name="precoProduto" required placeholder="Ex: 12.99" class="w-full p-3 border border-stone-400 rounded-lg focus:outline-none focus:border-lime-700 focus:ring-1 focus:ring-lime-700 shadow-sm">
+                    </div>
+                </div>
+                <div> 
+                    <label for="estoqueMinimoProduto" class="block text-sm font-medium text-gray-700 mb-1">Estoque Mínimo:</label>
+                    <input type="number" id="estoqueMinimoProduto" name="estoqueMinimoProduto" min="0" placeholder="Ex: 5" class="w-full p-3 border border-stone-400 rounded-lg focus:outline-none focus:border-lime-700 focus:ring-1 focus:ring-lime-700 shadow-sm">
+                </div>
+                <div>
+                    <button type="submit" id="submitFormBtn" class="w-full sm:w-auto bg-stone-700 hover:bg-stone-800 text-white font-semibold py-3 px-6 rounded-lg shadow-md flex items-center justify-center">
+                        <svg class="icon-sm mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                        <span id="formButtonText">Adicionar Produto</span>
+                    </button>
+                    <button type="button" id="cancelEditBtn" class="hidden ml-4 w-full sm:w-auto bg-stone-400 hover:bg-stone-500 text-stone-800 font-semibold py-3 px-6 rounded-lg shadow-md">
+                        Cancelar Edição
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <footer class="text-center py-8 mt-10 border-t border-stone-400">
+            <p class="text-sm text-stone-700">&copy; 2025 Controle de Estoque. Todos os direitos reservados.</p>
+        </footer>
+    </div>
+
+    <div id="messagePopup" class="message-popup"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+    <script>
+        const SUPABASE_URL = 'SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'SUPABASE_ANON_KEY';
+        const TABLE_NAME = 'TABLE_NAME'; 
+        const REPORT_WEBHOOK_URL = 'REPORT_WEBHOOK_URL';
+        const LOW_STOCK_WEBHOOK_URL = 'LOW_STOCK_WEBHOOK_URL';
+
+
+        const { createClient } = supabase; 
+        const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let produtos = []; 
+        let produtosVisiveis = []; 
+        let editingProductId = null; 
+        let activeFilter = null; 
+        let currentView = 'grid'; 
+
+        const listaProdutosContainer = document.getElementById('listaProdutosContainer');
+        const formProduto = document.getElementById('formProduto');
+        const formProdutoTitle = document.getElementById('formProdutoTitle');
+        const formButtonText = document.getElementById('formButtonText');
+        const submitFormBtnIcon = formProduto.querySelector('button[type="submit"] svg');
+        const searchInput = document.getElementById('searchInput');
+        const novoProdutoBtnHeader = document.getElementById('novoProdutoBtnHeader');
+        const sendReportBtn = document.getElementById('sendReportBtn'); 
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        const messagePopup = document.getElementById('messagePopup');
+
+        const statTotalProdutos = document.getElementById('statTotalProdutos');
+        const statEstoqueBaixo = document.getElementById('statEstoqueBaixo');
+        const statValorTotal = document.getElementById('statValorTotal');
+
+        const btnTop3MaiorEstoque = document.getElementById('btnTop3MaiorEstoque');
+        const btnTop3MenorEstoque = document.getElementById('btnTop3MenorEstoque');
+        const btnEstoqueBaixo = document.getElementById('btnEstoqueBaixo'); 
+        const btnEsgotado = document.getElementById('btnEsgotado'); 
+        const btnMostrarTodos = document.getElementById('btnMostrarTodos');
+        const categoryFilterSelect = document.getElementById('categoryFilterSelect');
+        const filterButtons = [btnTop3MaiorEstoque, btnTop3MenorEstoque, btnEstoqueBaixo, btnEsgotado, btnMostrarTodos];
+
+        const btnGridView = document.getElementById('btnGridView');
+        const btnListView = document.getElementById('btnListView');
+        
+        async function sendLowStockWebhook(product) {
+            const payload = {
+                productId: product.id,
+                productName: product.name,
+                currentStock: product.stock,
+                minStock: product.min_stock,
+                message: `Alerta: Produto "${product.name}" está com estoque baixo (${product.stock} unidades). Estoque mínimo: ${product.min_stock}.`
+            };
+            try {
+                const response = await fetch(LOW_STOCK_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', },
+                    body: JSON.stringify(payload),
+                });
+                if (!response.ok) {
+                    console.error('Falha ao enviar webhook de estoque baixo:', response.status, response.statusText);
+                }
+            } catch (error) {
+                console.error('Erro ao tentar enviar webhook de estoque baixo:', error);
+            }
+        }
+
+        async function sendInventoryReportWebhook() {
+            const payload = {
+                message: "faca um relatorio detalhado de todos os meus produtos em estoque.",
+                timestamp: new Date().toISOString(),
+            };
+            showMessage("Enviando solicitação de relatório...", "success");
+            try {
+                const response = await fetch(REPORT_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', },
+                    body: JSON.stringify(payload),
+                });
+                if (response.ok) {
+                    showMessage("Solicitação de relatório enviada com sucesso!", "success");
+                } else {
+                    console.error('Falha ao enviar webhook de relatório:', response.status, response.statusText);
+                    showMessage(`Falha ao enviar relatório: ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao tentar enviar webhook de relatório:', error);
+                showMessage(`Erro ao enviar relatório: ${error.message}`, 'error');
+            }
+        }
+
+
+        async function loadProdutos() {
+            const { data, error } = await db
+                .from(TABLE_NAME) 
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Erro ao carregar produtos:', error);
+                showMessage(`Erro ao carregar produtos: ${error.message}`, 'error');
+                return;
+            }
+            produtos = data || []; 
+            applyFiltersAndSearch(); 
+            atualizarEstatisticas();
+        }
+
+        function setView(viewType) {
+            currentView = viewType;
+            btnGridView.classList.toggle('active', viewType === 'grid');
+            btnListView.classList.toggle('active', viewType === 'list');
+            
+            if (viewType === 'grid') {
+                listaProdutosContainer.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6';
+            } else { 
+                listaProdutosContainer.className = 'flex flex-col gap-1'; 
+            }
+            renderProdutos(produtosVisiveis); 
+        }
+
+        function renderProdutos(produtosParaRenderizar) { 
+            produtosVisiveis = produtosParaRenderizar; 
+            listaProdutosContainer.innerHTML = '';
+
+            if (!produtosVisiveis || produtosVisiveis.length === 0) {
+                let message = "Nenhum produto cadastrado ainda. Adicione um novo produto!";
+                if (activeFilter || categoryFilterSelect.value !== 'todas' || searchInput.value.trim() !== '') {
+                     message = "Nenhum produto encontrado para os filtros aplicados.";
+                }
+                listaProdutosContainer.innerHTML = `<p class="col-span-full text-center text-gray-500 py-4">${message}</p>`;
+                return;
+            }
+
+            produtosVisiveis.forEach(produto => {
+                const elementoProduto = document.createElement('div');
+                let estoqueMinimo = produto.min_stock || 0; 
+                let quantidadeAtual = produto.stock || 0;
+                let stockIndicatorColorClass = 'bg-green-500'; 
+                if (quantidadeAtual <= 0) {
+                    stockIndicatorColorClass = 'bg-red-500'; 
+                } else if (quantidadeAtual <= estoqueMinimo) { 
+                    stockIndicatorColorClass = 'bg-yellow-500'; 
+                }
+
+                if (currentView === 'grid') {
+                    elementoProduto.className = `bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-shadow duration-300 flex flex-col justify-between`;
+                    elementoProduto.innerHTML = `
+                        <div>
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-800">${produto.name || 'Sem Nome'}</h3>
+                                    <p class="text-xs bg-stone-100 text-stone-700 px-2 py-0.5 rounded-full inline-block mt-1">${produto.category || 'Sem Categoria'}</p> 
+                                </div>
+                                <span title="${quantidadeAtual <= 0 ? 'Fora de Estoque' : quantidadeAtual <= estoqueMinimo ? 'Estoque Baixo' : 'Estoque OK'}" class="stock-indicator ${stockIndicatorColorClass}"></span>
+                            </div>
+                            <p class="text-xl font-bold text-lime-700 mb-1">R$ ${parseFloat(produto.price || 0).toFixed(2).replace('.', ',')}</p>
+                            <div class="text-sm text-gray-600 mb-3">
+                                <p>Estoque: <span class="font-medium ${quantidadeAtual <= estoqueMinimo && quantidadeAtual > 0 ? 'text-yellow-600' : quantidadeAtual === 0 ? 'text-red-600' : ''}">${quantidadeAtual} unidades</span></p>
+                                <p>Estoque mínimo: <span class="font-medium text-red-500">${estoqueMinimo} unidades</span></p>
+                            </div>
+                        </div>
+                        <div class="flex justify-end space-x-2 pt-3 border-t border-stone-200 mt-auto">
+                            <button title="Editar" class="btn-editar" data-id="${produto.id}"><svg class="icon-md text-blue-500 hover:text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg></button>
+                            <button title="Excluir" class="btn-excluir" data-id="${produto.id}"><svg class="icon-md text-red-500 hover:text-red-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.56 0c1.153 0 2.24.095 3.23.261m7.108 0c.317.052.614.12.888.203M4.772 5.79L2.81 3.833A1.125 1.125 0 001.73 4.93l1.94 1.939M4.772 5.79L6.75 2.25M19.23 5.79L21.19 3.833A1.125 1.125 0 0122.27 4.93l-1.94 1.939M19.23 5.79L17.25 2.25m-10.5 13.5L6.75 11.25" /></svg></button>
+                        </div>
+                    `;
+                } else { 
+                    elementoProduto.className = 'list-item';
+                    elementoProduto.innerHTML = `
+                        <div class="list-item-info flex-grow flex items-center gap-3 mr-4 min-w-0">
+                            <span title="${quantidadeAtual <= 0 ? 'Fora de Estoque' : quantidadeAtual <= estoqueMinimo ? 'Estoque Baixo' : 'Estoque OK'}" class="stock-indicator ${stockIndicatorColorClass}"></span>
+                            <span class="font-semibold text-gray-800 truncate flex-1 min-w-0" title="${produto.name || 'Sem Nome'}">${produto.name || 'Sem Nome'}</span>
+                            <span class="text-sm text-gray-600 truncate w-auto sm:w-1/4" title="${produto.category || 'Sem Categoria'}">${produto.category || 'Sem Categoria'}</span>
+                            <span class="text-sm text-gray-600 text-right w-auto sm:w-1/6 whitespace-nowrap">${quantidadeAtual} un.</span>
+                            <span class="text-sm font-medium text-lime-700 text-right w-auto sm:w-1/6 whitespace-nowrap">R$ ${parseFloat(produto.price || 0).toFixed(2).replace('.', ',')}</span>
+                        </div>
+                        <div class="list-item-actions">
+                            <button title="Editar" class="btn-editar" data-id="${produto.id}"><svg class="icon-md text-blue-500 hover:text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg></button>
+                            <button title="Excluir" class="btn-excluir" data-id="${produto.id}"><svg class="icon-md text-red-500 hover:text-red-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.56 0c1.153 0 2.24.095 3.23.261m7.108 0c.317.052.614.12.888.203M4.772 5.79L2.81 3.833A1.125 1.125 0 001.73 4.93l1.94 1.939M4.772 5.79L6.75 2.25M19.23 5.79L21.19 3.833A1.125 1.125 0 0122.27 4.93l-1.94 1.939M19.23 5.79L17.25 2.25m-10.5 13.5L6.75 11.25" /></svg></button>
+                        </div>
+                    `;
+                }
+                listaProdutosContainer.appendChild(elementoProduto);
+            });
+        }
+
+        function atualizarEstatisticas() {
+            const total = produtos.length;
+            const baixoEstoque = produtos.filter(p => (p.stock || 0) > 0 && (p.stock || 0) <= (p.min_stock || 0)).length; 
+            const valorTotalEstoque = produtos.reduce((sum, p) => sum + (parseFloat(p.price || 0) * parseInt(p.stock || 0)), 0);
+            
+            statTotalProdutos.textContent = total;
+            statEstoqueBaixo.textContent = baixoEstoque;
+            statValorTotal.textContent = valorTotalEstoque.toFixed(2).replace('.', ',');
+        }
+
+        function showMessage(message, type = 'success') {
+            messagePopup.textContent = message;
+            messagePopup.className = `message-popup ${type} show`;
+            setTimeout(() => { messagePopup.classList.remove('show'); }, 3000);
+        }
+
+        function resetForm() {
+            formProduto.reset();
+            editingProductId = null;
+            formProdutoTitle.textContent = 'Adicionar Novo Produto';
+            formButtonText.textContent = 'Adicionar Produto';
+            submitFormBtnIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />`;
+            cancelEditBtn.classList.add('hidden');
+            document.getElementById('nomeProduto').focus();
+        }
+
+        function updateActiveButton(clickedButton) {
+            filterButtons.forEach(button => {
+                button.classList.remove('active', 'filter-button-default', 'filter-button-yellow', 'filter-button-red');
+                if (button !== btnEstoqueBaixo && button !== btnEsgotado) {
+                    button.classList.add('filter-button-default');
+                } else if (button === btnEstoqueBaixo) {
+                    button.classList.add('filter-button-yellow');
+                } else if (button === btnEsgotado) {
+                    button.classList.add('filter-button-red');
+                }
+            });
+            if (clickedButton && clickedButton !== btnMostrarTodos) {
+                clickedButton.classList.add('active');
+            }
+        }
+        
+        function applyFiltersAndSearch() {
+            let tempProdutos = [...produtos];
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            const selectedCategory = categoryFilterSelect.value;
+
+            if (selectedCategory !== 'todas') {
+                tempProdutos = tempProdutos.filter(p => (p.category || '') === selectedCategory);
+            }
+
+            if (searchTerm) {
+                tempProdutos = tempProdutos.filter(p =>
+                    (p.name || '').toLowerCase().includes(searchTerm) ||
+                    (p.category || '').toLowerCase().includes(searchTerm) 
+                );
+            }
+            
+            if (activeFilter === 'top3maior') {
+                tempProdutos.sort((a, b) => (b.stock || 0) - (a.stock || 0));
+                tempProdutos = tempProdutos.slice(0, 3);
+            } else if (activeFilter === 'top3menor') {
+                tempProdutos.sort((a, b) => (a.stock || 0) - (b.stock || 0));
+                tempProdutos = tempProdutos.slice(0, 3);
+            } else if (activeFilter === 'estoquebaixo') {
+                tempProdutos = tempProdutos.filter(p => (p.stock || 0) > 0 && (p.stock || 0) <= (p.min_stock || 0));
+            } else if (activeFilter === 'esgotado') {
+                tempProdutos = tempProdutos.filter(p => (p.stock || 0) <= 0);
+            }
+            
+            renderProdutos(tempProdutos);
+        }
+
+
+        function filterTop3MaiorEstoque() {
+            activeFilter = 'top3maior';
+            searchInput.value = ''; 
+            updateActiveButton(btnTop3MaiorEstoque);
+            applyFiltersAndSearch();
+        }
+
+        function filterTop3MenorEstoque() {
+            activeFilter = 'top3menor';
+            searchInput.value = '';
+            updateActiveButton(btnTop3MenorEstoque);
+            applyFiltersAndSearch();
+        }
+        
+        function filterEstoqueBaixo() {
+            activeFilter = 'estoquebaixo';
+            searchInput.value = '';
+            updateActiveButton(btnEstoqueBaixo);
+            applyFiltersAndSearch();
+        }
+
+        function filterEsgotado() {
+            activeFilter = 'esgotado';
+            searchInput.value = '';
+            updateActiveButton(btnEsgotado);
+            applyFiltersAndSearch();
+        }
+
+        function mostrarTodosProdutos() {
+            activeFilter = null;
+            searchInput.value = ''; 
+            categoryFilterSelect.value = 'todas';
+            updateActiveButton(btnMostrarTodos);
+            applyFiltersAndSearch(); 
+        }
+        
+        function performSearch() {
+            activeFilter = null; 
+            updateActiveButton(null); 
+            applyFiltersAndSearch();
+        }
+
+        formProduto.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const formData = new FormData(formProduto);
+            const produtoData = {
+                name: formData.get('nomeProduto').trim(),
+                category: formData.get('categoriaProduto'),
+                stock: parseInt(formData.get('quantidadeProduto')),
+                price: parseFloat(formData.get('precoProduto').replace(',', '.')),
+                min_stock: parseInt(formData.get('estoqueMinimoProduto')),
+                brand: '' 
+            };
+            
+            if (!produtoData.name || isNaN(produtoData.stock) || isNaN(produtoData.price) || isNaN(produtoData.min_stock)) {
+                showMessage("Por favor, preencha os campos obrigatórios corretamente.", "error");
+                return;
+            }
+
+            let error;
+            let savedProductData;
+
+            if (editingProductId) {
+                const originalProduct = produtos.find(p => p.id === editingProductId);
+                const oldStock = originalProduct ? (originalProduct.stock || 0) : Infinity;
+                const oldMinStock = originalProduct ? (originalProduct.min_stock || 0) : 0;
+
+                const { data: updatedProduct, error: updateError } = await db
+                    .from(TABLE_NAME)
+                    .update(produtoData)
+                    .eq('id', editingProductId)
+                    .select()
+                    .single();
+                error = updateError;
+                savedProductData = updatedProduct;
+
+                if (!error && savedProductData) {
+                    const newStock = savedProductData.stock || 0;
+                    const newMinStock = savedProductData.min_stock || 0;
+                    if ((oldStock > oldMinStock || oldStock <= 0) && (newStock > 0 && newStock <= newMinStock)) {
+                        sendLowStockWebhook(savedProductData);
+                    }
+                }
+            } else {
+                const { data: newProduct, error: insertError } = await db
+                    .from(TABLE_NAME)
+                    .insert([produtoData])
+                    .select()
+                    .single();
+                error = insertError;
+                savedProductData = newProduct;
+
+                if (!error && savedProductData) {
+                    const newStock = savedProductData.stock || 0;
+                    const newMinStock = savedProductData.min_stock || 0;
+                    if (newStock > 0 && newStock <= newMinStock) {
+                        sendLowStockWebhook(savedProductData);
+                    }
+                }
+            }
+
+            if (error) {
+                console.error('Erro ao salvar produto:', error);
+                showMessage(`Erro ao salvar produto: ${error.message}`, 'error');
+            } else {
+                showMessage(`Produto ${editingProductId ? 'atualizado' : 'adicionado'} com sucesso!`, "success");
+                resetForm();
+                loadProdutos(); 
+            }
+        });
+
+        listaProdutosContainer.addEventListener('click', (event) => {
+            const target = event.target.closest('button');
+            if (!target) {
+                return;
+            }
+
+            const id = target.dataset.id;
+            const produto = produtos.find(p => p.id == id); 
+            
+            if (target.classList.contains('btn-editar')) {
+                if (produto) {
+                    editingProductId = id;
+                    document.getElementById('nomeProduto').value = produto.name || '';
+                    document.getElementById('categoriaProduto').value = produto.category || '';
+                    document.getElementById('quantidadeProduto').value = produto.stock || 0;
+                    document.getElementById('precoProduto').value = parseFloat(produto.price || 0).toFixed(2).replace('.', ',');
+                    document.getElementById('estoqueMinimoProduto').value = produto.min_stock || 0;
+                    
+                    formProdutoTitle.textContent = 'Editar Produto';
+                    formButtonText.textContent = 'Salvar Alterações';
+                    submitFormBtnIcon.innerHTML = `<svg class="icon-sm mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>`;
+                    cancelEditBtn.classList.remove('hidden');
+                    formProdutoContainer.scrollIntoView({ behavior: 'smooth' });
+                }
+            } else if (target.classList.contains('btn-excluir')) {
+                if (produto) {
+                    const confirmacao = confirm(`Tem certeza que deseja excluir o produto "${produto.name || 'Nome não encontrado'}"?`);
+                    if (confirmacao) {
+                        db.from(TABLE_NAME).delete().eq('id', id)
+                            .then(({ data, error }) => { 
+                                if (error) {
+                                    console.error('Erro ao excluir no Supabase:', error);
+                                    showMessage(`Erro ao excluir produto: ${error.message}`, 'error');
+                                } else {
+                                    showMessage("Produto excluído com sucesso!", "success");
+                                    if(editingProductId == id) {
+                                        resetForm();
+                                    }
+                                    loadProdutos(); 
+                                }
+                            })
+                            .catch(catchError => { 
+                                console.error('Erro inesperado na operação de exclusão:', catchError);
+                                showMessage(`Erro inesperado ao excluir: ${catchError.message}`, 'error');
+                            });
+                    }
+                }
+            }
+        });
+
+        searchInput.addEventListener('input', performSearch);
+        categoryFilterSelect.addEventListener('change', applyFiltersAndSearch);
+
+
+        btnTop3MaiorEstoque.addEventListener('click', () => filterTop3MaiorEstoque());
+        btnTop3MenorEstoque.addEventListener('click', () => filterTop3MenorEstoque());
+        btnEstoqueBaixo.addEventListener('click', () => filterEstoqueBaixo());
+        btnEsgotado.addEventListener('click', () => filterEsgotado());
+        btnMostrarTodos.addEventListener('click', mostrarTodosProdutos);
+
+        btnGridView.addEventListener('click', () => setView('grid'));
+        btnListView.addEventListener('click', () => setView('list'));
+
+
+        novoProdutoBtnHeader.addEventListener('click', () => {
+            resetForm();
+            formProdutoContainer.scrollIntoView({ behavior: 'smooth' });
+        });
+        
+        sendReportBtn.addEventListener('click', sendInventoryReportWebhook);
+
+
+        cancelEditBtn.addEventListener('click', () => { resetForm(); });
+
+        let realtimeChannel = null;
+        function setupRealtimeListener() {
+            if (realtimeChannel) {
+                db.removeChannel(realtimeChannel);
+            }
+
+            realtimeChannel = db.channel('products_realtime'); 
+            realtimeChannel
+              .on('postgres_changes', { event: '*', schema: 'public', table: TABLE_NAME }, (payload) => {
+                loadProdutos();
+              })
+              .subscribe((status, err) => { 
+                if (status === 'SUBSCRIBED') {
+                } else if (status === 'CHANNEL_ERROR') {
+                  console.error('Erro ao conectar ao canal de realtime do Supabase. Verifique a Replicação e RLS no painel Supabase.', err ? err : 'Erro desconhecido no canal.'); 
+                  showMessage('Erro na conexão em tempo real. Verifique as configurações da tabela no Supabase (Replicação/RLS).', 'error');
+                } else if (status === 'TIMED_OUT') {
+                  console.warn('Timeout ao conectar ao canal de realtime do Supabase.');
+                }
+              });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setView('grid'); 
+            loadProdutos();
+            setupRealtimeListener();
+        });
+        
+    </script>
+</body>
+</html>
