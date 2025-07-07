@@ -3,7 +3,7 @@ Controle de Estoque é uma webapp responsiva para gerenciar inventário em tempo
 
 ## Descrição do Projeto
 
-**Controle de Estoque – Ynayê** é uma aplicação web leve e responsiva, desenvolvida para pequenas e médias empresas que precisam gerenciar seu inventário de forma simples, visual e em tempo real. Ela combina uma interface intuitiva com funcionalidades avançadas de filtragem, relatórios automáticos e notificações de estoque baixo, garantindo que você tenha sempre o controle sobre seus produtos.
+**Controle de Estoque** é uma aplicação web leve e responsiva, desenvolvida para pequenas e médias empresas que precisam gerenciar seu inventário de forma simples, visual e em tempo real. Ela combina uma interface intuitiva com funcionalidades avançadas de filtragem, relatórios automáticos e notificações de estoque baixo, garantindo que você tenha sempre o controle sobre seus produtos.
 
 ---
 
